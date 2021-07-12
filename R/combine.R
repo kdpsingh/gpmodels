@@ -1,13 +1,13 @@
 #'
-wiz_combine_old = function(wiz_frame, ..., files = NULL, wiz_path = TRUE, dplyr_join = dplyr::inner_join) {
+gpm_combine_old = function(time_frame, ..., files = NULL, gpm_path = TRUE, dplyr_join = dplyr::inner_join) {
 
   if (is.null(files)) {
-    temporal_dfs = append(list(wiz_frame$fixed_data %>%
-                                 dplyr::rename(!!rlang::parse_expr(wiz_frame$temporal_id) := !!rlang::parse_expr(wiz_frame$fixed_id))),
+    temporal_dfs = append(list(time_frame$fixed_data %>%
+                                 dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
                           list(...))
   } else {
-    temporal_dfs = append(list(wiz_frame$fixed_data %>%
-                                 dplyr::rename(!!rlang::parse_expr(wiz_frame$temporal_id) := !!rlang::parse_expr(wiz_frame$fixed_id))),
+    temporal_dfs = append(list(time_frame$fixed_data %>%
+                                 dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
                           as.list(files))
   }
   temporal_dfs =
@@ -15,9 +15,9 @@ wiz_combine_old = function(wiz_frame, ..., files = NULL, wiz_path = TRUE, dplyr_
     lapply(function (x) {
       if ('data.frame' %in% class(x)) {
         return(x)
-      } else if (class(x) == 'character' & wiz_path) {
-        return(data.table::fread(file.path(wiz_frame$output_folder, x)))
-      } else if (class(x) == 'character' & !wiz_path) {
+      } else if (class(x) == 'character' & gpm_path) {
+        return(data.table::fread(file.path(time_frame$output_folder, x)))
+      } else if (class(x) == 'character' & !gpm_path) {
         return(data.table::fread(x))
       } else {
         stop('Error: the ... must be limited to data frames and file paths.')
@@ -27,18 +27,18 @@ wiz_combine_old = function(wiz_frame, ..., files = NULL, wiz_path = TRUE, dplyr_
   return(Reduce(dplyr_join, temporal_dfs) %>% as.data.frame())
 }
 
-#' New wiz_combine function
+#' New gpm_combine function
 #' @export
-wiz_combine = function(wiz_frame,
+gpm_combine = function(time_frame,
                            ...,
                            files = NULL,
                            include_files = TRUE,
-                           wiz_path = TRUE,
+                           gpm_path = TRUE,
                            dplyr_join = dplyr::inner_join,
                            log_file = TRUE) {
 
-    return_frame = list(wiz_frame$fixed_data %>%
-                          dplyr::rename(!!rlang::parse_expr(wiz_frame$temporal_id) := !!rlang::parse_expr(wiz_frame$fixed_id)))
+    return_frame = list(time_frame$fixed_data %>%
+                          dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id)))
 
     if (length(list(...)) > 0) {
       return_frame = append(return_frame, list(...))
@@ -46,14 +46,14 @@ wiz_combine = function(wiz_frame,
 
     if (include_files) {
       if (is.null(files)) {
-        files = dir(wiz_frame$output_folder, pattern = '.csv')
-        wiz_path = TRUE # overwrite wiz_path
+        files = dir(time_frame$output_folder, pattern = '.csv')
+        gpm_path = TRUE # overwrite gpm_path
       }
       num_files = length(files)
     }
 
     if (include_files && num_files == 0) {
-      stop(paste0('No .csv files were found in ', wiz_frame$output_folder, '. ',
+      stop(paste0('No .csv files were found in ', time_frame$output_folder, '. ',
                   'If you do not want to combine any files, please set ',
                   'include_files to FALSE.'))
     }
@@ -61,8 +61,8 @@ wiz_combine = function(wiz_frame,
     if (include_files) {
       detect_chunks = stringr::str_detect(files, '\\bchunk_\\d+')
 
-      if (wiz_path) {
-        files = file.path(wiz_frame$output_folder, files)
+      if (gpm_path) {
+        files = file.path(time_frame$output_folder, files)
       }
 
       if (!any(detect_chunks)) { # if no files are chunked
@@ -73,7 +73,7 @@ wiz_combine = function(wiz_frame,
                           message(paste0('Reading file: ', file_name, '...'))
                           if (log_file) {
                             write(paste0(Sys.time(), ': Reading file: ', file_name, '...'),
-                                  file.path(wiz_frame$output_folder, 'wiz_log.txt'), append = TRUE)
+                                  file.path(time_frame$output_folder, 'gpm_log.txt'), append = TRUE)
                           }
                           data.table::fread(file_name, data.table = FALSE)
                         }))
@@ -88,7 +88,7 @@ wiz_combine = function(wiz_frame,
                           message(paste0('Reading file: ', file_name, '...'))
                           if (log_file) {
                             write(paste0(Sys.time(), ': Reading file: ', file_name, '...'),
-                                  file.path(wiz_frame$output_folder, 'wiz_log.txt'), append = TRUE)
+                                  file.path(time_frame$output_folder, 'gpm_log.txt'), append = TRUE)
                           }
                           data.table::fread(file_name, data.table = FALSE)
                         }))
@@ -108,7 +108,7 @@ wiz_combine = function(wiz_frame,
                    message(paste0('Reading chunk: ', chunk_name, '...'))
                    if (log_file) {
                      write(paste0(Sys.time(), ': Reading chunk: ', chunk_name, '...'),
-                           file.path(wiz_frame$output_folder, 'wiz_log.txt'), append = TRUE)
+                           file.path(time_frame$output_folder, 'gpm_log.txt'), append = TRUE)
                    }
                    lapply(files[stringr::str_detect(files, chunk_name)], data.table::fread) %>%
                      Reduce(dplyr_join, .) %>%

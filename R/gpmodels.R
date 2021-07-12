@@ -1,6 +1,6 @@
 #' Define wizard frame
 #' @export
-wiz_frame = function(fixed_data,
+time_frame = function(fixed_data,
                      temporal_data,
                      fixed_id = 'id',
                      fixed_start = NULL,
@@ -14,7 +14,7 @@ wiz_frame = function(fixed_data,
                      max_length = NULL,
                      output_folder = NULL,
                      create_folder = FALSE,
-                     save_wiz_frame = TRUE,
+                     save_time_frame = TRUE,
                      chunk_size = NULL,
                      numeric_threshold = 0.5) {
 
@@ -141,9 +141,9 @@ wiz_frame = function(fixed_data,
                            dplyr::slice(1) %>% # Pick the first value (temporally)
                            dplyr::ungroup() %>%
                            dplyr::rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::rename(wiz_start_time = !!rlang::parse_expr(temporal_time)))
+                           dplyr::rename(gpm_start_time = !!rlang::parse_expr(temporal_time)))
 
-      fixed_start = 'wiz_start_time'
+      fixed_start = 'gpm_start_time'
     })
   }
 
@@ -158,9 +158,9 @@ wiz_frame = function(fixed_data,
                            dplyr::slice(dplyr::n()) %>% # Pick the last value (temporally)
                            dplyr::ungroup() %>%
                            dplyr::rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::rename(wiz_end_time = !!rlang::parse_expr(temporal_time)))
+                           dplyr::rename(gpm_end_time = !!rlang::parse_expr(temporal_time)))
 
-      fixed_end = 'wiz_end_time'
+      fixed_end = 'gpm_end_time'
     })
   }
 
@@ -177,7 +177,7 @@ wiz_frame = function(fixed_data,
       dplyr::left_join(., fixed_data %>%
                          dplyr::select_at(c(fixed_id, fixed_start)) %>%
                          dplyr::rename(!!rlang::parse_expr(temporal_id) := !!rlang::parse_expr(fixed_id)) %>%
-                         dplyr::rename(wiz_fixed_start_time = !!rlang::parse_expr(fixed_start))
+                         dplyr::rename(gpm_fixed_start_time = !!rlang::parse_expr(fixed_start))
       )
   })
 
@@ -185,14 +185,14 @@ wiz_frame = function(fixed_data,
     temporal_data =
       temporal_data %>%
       dplyr::mutate(!!rlang::parse_expr(temporal_time) :=
-                      lubridate::time_length(!!rlang::parse_expr(temporal_time) - wiz_fixed_start_time, unit = step_units)) %>%
-      dplyr::select(-wiz_fixed_start_time)
+                      lubridate::time_length(!!rlang::parse_expr(temporal_time) - gpm_fixed_start_time, unit = step_units)) %>%
+      dplyr::select(-gpm_fixed_start_time)
   } else {
     temporal_data =
       temporal_data %>%
       dplyr::mutate(!!rlang::parse_expr(temporal_time) :=
-                      !!rlang::parse_expr(temporal_time) - wiz_fixed_start_time) %>%
-      dplyr::select(-wiz_fixed_start_time)
+                      !!rlang::parse_expr(temporal_time) - gpm_fixed_start_time) %>%
+      dplyr::select(-gpm_fixed_start_time)
   }
 
 
@@ -210,14 +210,14 @@ wiz_frame = function(fixed_data,
 
   suppressWarnings({
     temporal_data_dict =
-      wiz_build_temporal_data_dictionary(temporal_data,
+      gpm_build_temporal_data_dictionary(temporal_data,
                                          temporal_variable,
                                          temporal_value,
                                          numeric_threshold)
   })
 
 
-  wiz_frame =
+  time_frame =
     structure(list(
       fixed_data = as.data.frame(fixed_data),
       temporal_data = as.data.frame(temporal_data),
@@ -236,13 +236,13 @@ wiz_frame = function(fixed_data,
       fixed_data_dict = fixed_data_dict,
       temporal_data_dict = temporal_data_dict,
       chunk_size = chunk_size),
-      class = 'wiz_frame')
+      class = 'time_frame')
 
-  if (save_wiz_frame) {
-    saveRDS(wiz_frame, file.path(output_folder, 'wiz_frame.rds'))
+  if (save_time_frame) {
+    saveRDS(time_frame, file.path(output_folder, 'time_frame.rds'))
   }
 
-  return(wiz_frame)
+  return(time_frame)
 }
 
 
@@ -250,7 +250,7 @@ wiz_frame = function(fixed_data,
 #' This function assumes that the temporal data values may be characters if
 #' some variables are categorical. This is an internal function.
 #'
-wiz_build_temporal_data_dictionary = function (temporal_data,
+gpm_build_temporal_data_dictionary = function (temporal_data,
                                                temporal_variable,
                                                temporal_value,
                                                numeric_threshold = 0.5) {
@@ -323,67 +323,67 @@ wiz_build_temporal_data_dictionary = function (temporal_data,
 #' Either provide a threshold (defaults to 0.5) or provide a vector of variables.
 #' If you supply a vector of variables, this takes precedence over the numeric threshold.
 #' @export
-wiz_dummy_code = function(wiz_frame = NULL,
+gpm_dummy_code = function(time_frame = NULL,
                           numeric_threshold = 0.5,
                           variables = NULL,
-                          save_wiz_frame = TRUE) {
+                          save_time_frame = TRUE) {
 
   if (is.null(variables)) { # if you do NOT supply a vector of variables (the default)
 
-    categorical_vars = wiz_frame$temporal_data_dict %>%
+    categorical_vars = time_frame$temporal_data_dict %>%
       dplyr::filter(class == 'character') %>%
       dplyr::pull(variable)
 
     if (length(categorical_vars) == 0) {
-      message(paste('There are no categorical variables. There is no need to apply wiz_dummy_code(). ',
+      message(paste('There are no categorical variables. There is no need to apply gpm_dummy_code(). ',
                  'To override this, please supply a vector of variable names to the variables argument.'))
-      return(wiz_frame)
+      return(time_frame)
     }
 
-    wiz_frame$temporal_data = wiz_frame$temporal_data %>%
-      dplyr::mutate(wiz_temp_var = (!!rlang::parse_expr(wiz_frame$temporal_variable)) %in% categorical_vars) %>%
-      dplyr::mutate(!!rlang::parse_expr(wiz_frame$temporal_variable) :=
+    time_frame$temporal_data = time_frame$temporal_data %>%
+      dplyr::mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% categorical_vars) %>%
+      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
                       dplyr::case_when(
-                        wiz_temp_var ~ paste0(!!rlang::parse_expr(wiz_frame$temporal_variable),
+                        gpm_temp_var ~ paste0(!!rlang::parse_expr(time_frame$temporal_variable),
                                               '_',
-                                              !!rlang::parse_expr(wiz_frame$temporal_value)),
-                        TRUE ~ !!rlang::parse_expr(wiz_frame$temporal_variable)))  %>%
-      dplyr::mutate(!!rlang::parse_expr(wiz_frame$temporal_value) :=
+                                              !!rlang::parse_expr(time_frame$temporal_value)),
+                        TRUE ~ !!rlang::parse_expr(time_frame$temporal_variable)))  %>%
+      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
                       dplyr::case_when(
-                        wiz_temp_var ~ '1',
-                        TRUE ~ !!rlang::parse_expr(wiz_frame$temporal_value))) %>%
-      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(wiz_frame$temporal_value)), as.numeric) %>%
-      dplyr::select(-wiz_temp_var) %>%
+                        gpm_temp_var ~ '1',
+                        TRUE ~ !!rlang::parse_expr(time_frame$temporal_value))) %>%
+      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
+      dplyr::select(-gpm_temp_var) %>%
       as.data.frame()
   } else { # if you specify a vector of variables
-    wiz_frame$temporal_data = wiz_frame$temporal_data %>%
-      dplyr::mutate(wiz_temp_var = (!!rlang::parse_expr(wiz_frame$temporal_variable)) %in% variables) %>%
-      dplyr::mutate(!!rlang::parse_expr(wiz_frame$temporal_variable) :=
+    time_frame$temporal_data = time_frame$temporal_data %>%
+      dplyr::mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% variables) %>%
+      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
                       dplyr::case_when(
-                        wiz_temp_var ~ paste0(!!rlang::parse_expr(wiz_frame$temporal_variable),
+                        gpm_temp_var ~ paste0(!!rlang::parse_expr(time_frame$temporal_variable),
                                               '_',
-                                              !!rlang::parse_expr(wiz_frame$temporal_value)),
-                        TRUE ~ !!rlang::parse_expr(wiz_frame$temporal_variable)))  %>%
-      dplyr::mutate(!!rlang::parse_expr(wiz_frame$temporal_value) :=
+                                              !!rlang::parse_expr(time_frame$temporal_value)),
+                        TRUE ~ !!rlang::parse_expr(time_frame$temporal_variable)))  %>%
+      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
                       dplyr::case_when(
-                        wiz_temp_var ~ '1',
-                        TRUE ~ !!rlang::parse_expr(wiz_frame$temporal_value))) %>%
-      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(wiz_frame$temporal_value)), as.numeric) %>%
-      dplyr::select(-wiz_temp_var) %>%
+                        gpm_temp_var ~ '1',
+                        TRUE ~ !!rlang::parse_expr(time_frame$temporal_value))) %>%
+      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
+      dplyr::select(-gpm_temp_var) %>%
       as.data.frame()
   }
 
-  suppressWarnings({wiz_frame$temporal_data_dict =
-    wiz_build_temporal_data_dictionary(wiz_frame$temporal_data,
-                                       wiz_frame$temporal_variable,
-                                       wiz_frame$temporal_value,
+  suppressWarnings({time_frame$temporal_data_dict =
+    gpm_build_temporal_data_dictionary(time_frame$temporal_data,
+                                       time_frame$temporal_variable,
+                                       time_frame$temporal_value,
                                        numeric_threshold)})
 
-  if (save_wiz_frame) {
-    saveRDS(wiz_frame, file.path(wiz_frame$output_folder, 'wiz_frame.rds'))
+  if (save_time_frame) {
+    saveRDS(time_frame, file.path(time_frame$output_folder, 'time_frame.rds'))
   }
 
-  wiz_frame
+  time_frame
 }
 
 

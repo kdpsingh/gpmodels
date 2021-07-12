@@ -15,7 +15,7 @@ knitr::opts_chunk$set(
 ```
 
 ```{r, eval = FALSE}
-library(wizard)
+library(gpmodels)
 ```
 
 ## Let's start by loading the mtsamples dataset
@@ -51,10 +51,10 @@ dataset =
 cat(dataset$char[1:100])
 ```
 
-## Let's generate a wiz_frame
+## Let's generate a time_frame
 
 ```{r}
-char_frame = wiz_frame(fixed_data = dataset %>% distinct(id), 
+char_frame = time_frame(fixed_data = dataset %>% distinct(id), 
                        temporal_data = dataset %>% filter(id == 1),
                        fixed_id = 'id',
                        temporal_id = 'id',
@@ -63,14 +63,14 @@ char_frame = wiz_frame(fixed_data = dataset %>% distinct(id),
                        temporal_value = 'char',
                        step = 2,
                        max_length = 20,
-                       output_folder = 'Z:/kdpsingh/wiz_char_lang', 
-                       save_wiz_frame = FALSE)
+                       output_folder = 'Z:/kdpsingh/gpm_char_lang', 
+                       save_time_frame = FALSE)
 ```
 
-## Let's generate a wiz_frame (for fun)
+## Let's generate a time_frame (for fun)
 
 ```{r}
-char_frame = wiz_frame(fixed_data = dataset %>% distinct(id), 
+char_frame = time_frame(fixed_data = dataset %>% distinct(id), 
                        temporal_data = dataset,
                        fixed_id = 'id',
                        temporal_id = 'id',
@@ -78,7 +78,7 @@ char_frame = wiz_frame(fixed_data = dataset %>% distinct(id),
                        temporal_variable = 'variable',
                        temporal_value = 'char',
                        step = 1,
-                       output_folder = 'Z:/kdpsingh/wiz_char_lang/all_data_in_chunks',
+                       output_folder = 'Z:/kdpsingh/gpm_char_lang/all_data_in_chunks',
                        create_folder = TRUE,
                        chunk_size = 16)
 ```
@@ -91,7 +91,7 @@ char_frame = wiz_frame(fixed_data = dataset %>% distinct(id),
 future::plan('multisession', workers = 6)
 
 # model_predictors = char_frame %>%
-#   wiz_add_predictors(variables = 'variable',
+#   gpm_add_predictors(variables = 'variable',
 #                      lookback = 20,
 #                      window = 1,
 #                      stats = c(first = . %>% .[1]),
@@ -99,12 +99,12 @@ future::plan('multisession', workers = 6)
 # 
 # 
 # model_predictors = char_frame %>%
-#   wiz_add_growing_predictors(variables = 'variable',
+#   gpm_add_growing_predictors(variables = 'variable',
 #                      stats = c(ngram = . %>% paste(collapse = '')),
 #                      output_file = FALSE)
 
 char_frame %>% 
-  wiz_add_predictors(variables = 'variable', 
+  gpm_add_predictors(variables = 'variable', 
                      lookback = 50,
                      window = 1, 
                      stats = c(first = . %>% .[1]),
@@ -112,25 +112,25 @@ char_frame %>%
 
 
 char_frame %>% 
-  wiz_add_outcomes(variables = 'variable', 
+  gpm_add_outcomes(variables = 'variable', 
                    lookahead = 1,
                    stats = c(first = . %>% .[1]))
 
 # model_predictors_ngram = char_frame %>%
-#   wiz_add_predictors(variables = 'variable',
+#   gpm_add_predictors(variables = 'variable',
 #                      lookback = 3,
 #                      stats = c(ngram = . %>% paste(collapse = '')),
 #                      output_file = FALSE)
 
 
 model_outcome = char_frame %>% 
-  wiz_add_outcomes(variables = 'variable', 
+  gpm_add_outcomes(variables = 'variable', 
                    lookahead = 1,
                    stats = c(first = . %>% .[1]),
                    output_file = FALSE)
 
 # model_outcome_ngram = char_frame %>% 
-#   wiz_add_outcomes(variables = 'variable', 
+#   gpm_add_outcomes(variables = 'variable', 
 #                    lookahead = 1,
 #                    stats = c(ngram = . %>% paste(collapse = '')),
 #                    output_file = FALSE)
@@ -146,7 +146,7 @@ model_outcome = char_frame %>%
 ## Combine the datasets
 
 ```{r}
-model_data = wiz_combine(char_frame, 
+model_data = gpm_combine(char_frame, 
                          model_outcome,
                          model_predictors)
 
@@ -158,7 +158,7 @@ knitr::kable(model_data, align = 'c')
 ## Combine the ngram datasets
 
 ```{r}
-model_data_ngram = wiz_combine(char_frame,
+model_data_ngram = gpm_combine(char_frame,
                                model_outcome_ngram,
                                model_predictors_ngram)
 

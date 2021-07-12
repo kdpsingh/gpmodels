@@ -57,3 +57,6 @@
 
 # wizard 0.2.1 (2021-02-24)
 * Perform a final check in `wiz_add_predictors_internal` to ensure that the output_frame is not empty. If it is, then return a message rather than simply writing an empty output file to disk, which can result in an error when combining this with other files due to mismatches in data types for the temporal_id column.
+
+# gpmodels 0.3.1 (2021-07-12)
+* Name change to gpmodels to reflect an expansion in scope to include data preparation and evaluation of fixed-origin and rolling-origin prediction models.

@@ -13,9 +13,9 @@ knitr::opts_chunk$set(
 )
 ```
 
-# wizard
+# gpmodels
 
-## Windowed Summarization for Autoregressive Data
+## A Grammar of Prediction Models
 
 This package uses windowed summarization to convert time series data into a form that can be modeled by prediction models.
 
@@ -25,18 +25,18 @@ This package uses windowed summarization to convert time series data into a form
 
 ## Installation
 
-You can install the GitHub version of wizard with:
+You can install the GitHub version of gpmodels with:
 
 ```{r eval=FALSE}
-remotes::install_github('ML4LHS/wizard')
+remotes::install_github('ML4LHS/gpmodels')
 ```
 
-## How to set up a wiz_frame()
+## How to set up a time_frame()
 
-Start by loading and package and defining your `wiz_frame()`. A `wiz_frame` is simply a list with the class `wiz_frame` and contains all the key information needed to describe both your fixed dataset (such as demographics, one row per patient) and your temporal dataset (one row per observation linked to a timestamp).
+Start by loading and package and defining your `time_frame()`. A `time_frame` is simply a list with the class `time_frame` and contains all the key information needed to describe both your fixed dataset (such as demographics, one row per patient) and your temporal dataset (one row per observation linked to a timestamp).
 
 ```{r}
-library(wizard)
+library(gpmodels)
 ```
 
 ```{r}
@@ -45,9 +45,9 @@ library(lubridate)
 
 future::plan('multisession')
 
-unlink(file.path(tempdir(), 'wizard_dir', '*.*'))
+unlink(file.path(tempdir(), 'gpmodels_dir', '*.*'))
 
-wf = wiz_frame(fixed_data = sample_fixed_data,
+tf = time_frame(fixed_data = sample_fixed_data,
                temporal_data = sample_temporal_data %>% dplyr::filter(id %in% 1:100),
                fixed_id = 'id',
                fixed_start = 'admit_time',
@@ -59,7 +59,7 @@ wf = wiz_frame(fixed_data = sample_fixed_data,
                temporal_value = 'value',
                step = hours(6),
                max_length = days(7), # optional parameter to limit to first 7 days of hospitalization
-               output_folder = file.path(tempdir(), 'wizard_dir'),
+               output_folder = file.path(tempdir(), 'gpmodels_dir'),
                create_folder = TRUE)
 
 ```
@@ -67,43 +67,43 @@ wf = wiz_frame(fixed_data = sample_fixed_data,
 ## Let's look at the automatically generated data dictionaries
 
 ```{r}
-names(wf)
+names(tf)
 
-wf$step
+tf$step
 
-wf$step_units
+tf$step_units
 
-wf$fixed_data_dict
+tf$fixed_data_dict
 
-wf$temporal_data_dict
+tf$temporal_data_dict
 ```
 
 ## Let's dummy           code the temporal categorical variables
 
 
 ```{r}
-wf = wf %>% 
-  wiz_dummy_code()
+tf = tf %>% 
+  gpm_dummy_code()
 ```
 
 
 This affects only the temporal data and not the fixed data.
 
 ```{r}
-wf$fixed_data_dict
+tf$fixed_data_dict
 
-wf$temporal_data_dict
+tf$temporal_data_dict
 ```
 
 ## Let's add some predictors and outcomes
 
-The default method writes output to the folder defined in your `wiz_frame`. When you write your output to file, you are allowed to chain together `add_predictors()` and `add_outcomes()` functions. This is possble because these functions invisibly return a `wiz_frame`.
+The default method writes output to the folder defined in your `time_frame`. When you write your output to file, you are allowed to chain together `add_predictors()` and `add_outcomes()` functions. This is possble because these functions invisibly return a `time_frame`.
 
-If, however, you set `output_file` to `FALSE`, then your actual output is returned (rather than the `wiz_frame`) so you cannot chain functions.
+If, however, you set `output_file` to `FALSE`, then your actual output is returned (rather than the `time_frame`) so you cannot chain functions.
 
 ```{r}
-wf %>%           
-  wiz_add_predictors(variables = 'cr', # Note: You can supply a vector of variables
+tf %>%           
+  gpm_add_rolling_predictors(variables = 'cr', # Note: You can supply a vector of variables
                      lookback = hours(12), 
                      window = hours(6), 
                      stats = c(mean = mean,
@@ -111,40 +111,40 @@ wf %>%
                                max = max,
                                median = median,
                                length = length)) %>%
-  wiz_add_baseline_predictors(variables = 'cr', # add baseline creatinine
+  gpm_add_baseline_predictors(variables = 'cr', # add baseline creatinine
                               lookback = days(90),
                               offset = hours(10),
                               stats = c(min = min)) %>%
-  wiz_add_growing_predictors(variables = 'cr', # cumulative max creatinine since admission
+  gpm_add_growing_predictors(variables = 'cr', # cumulative max creatinine since admission
                               stats = c(max = max)) %>%
-  wiz_add_predictors(category = 'med', # Note: category is always a regular expression 
+  gpm_add_rolling_predictors(category = 'med', # Note: category is always a regular expression 
                      lookback = days(7),
                      stats = c(sum = sum)) %>% 
-  wiz_add_outcomes(variables = 'cr',
+  gpm_add_rolling_outcomes(variables = 'cr',
                    lookahead = hours(24), 
                    stats = c(max = max))
 ```
 
 ## Let's combine our output into a single data frame
 
-You can provide `wiz_combine()` with a set of data frames separated by commas. Or, now you can provide a vector of file names using the `files` argument. If you leave `files` blank, it will automatically find all the `.csv` files from the `output_folder` of your `wiz_frame`.
+You can provide `gpm_combine()` with a set of data frames separated by commas. Or, you can provide a vector of file names using the `files` argument. If you leave `files` blank, it will automatically find all the `.csv` files from the `output_folder` of your `time_frame`.
 
 This resulting frame is essentially ready for modeling (using `tidymodels`, for example). Make sure to keep individual patients in the same fold if you divide this dataset into multiple folds.
 
 ```{r}
-model_data = wiz_combine(wf)
+model_data = gpm_combine(tf)
 
 head(model_data)
 ```
 
 
-## Testing wiz_frame without writing output to files
+## Testing time_frame without writing output to files
 
-If you want to simply test `wiz_frame`, you may prefer not to write your output to file. You can accomplish this by setting `output_file` to `FALSE`.
+If you want to simply test `time_frame`, you may prefer not to write your output to file. You can accomplish this by setting `output_file` to `FALSE`.
 
 ```{r}
-wf %>% 
-  wiz_add_predictors(variables = 'cr',
+tf %>% 
+  gpm_add_rolling_predictors(variables = 'cr',
                      lookback = hours(12), 
                      window = hours(6), 
                      stats = c(mean = mean,
@@ -159,8 +159,8 @@ wf %>%
 ## You can also supply a vector of variables
 
 ```{r}
-wf %>% 
-  wiz_add_predictors(variables = c('cr', 'med_aspirin'),
+tf %>% 
+  gpm_add_rolling_predictors(variables = c('cr', 'med_aspirin'),
                      lookback = weeks(1), 
                      stats = c(length = length),
                      output_file = FALSE) %>% 
@@ -170,8 +170,8 @@ wf %>%
 ## Category accepts regular expressions
 
 ```{r}
-wf %>% 
-  wiz_add_predictors(category = 'lab|med',
+tf %>% 
+  gpm_add_rolling_predictors(category = 'lab|med',
                      lookback = hours(12), 
                      stats = c(length = length),
                      output_file = FALSE) %>% 
@@ -189,8 +189,8 @@ benchmark_results = list()
 
 benchmark_results[['multisession']] = 
   microbenchmark::microbenchmark(
-    wf %>% 
-      wiz_add_predictors(variable = 'cr',
+    tf %>% 
+      gpm_add_rolling_predictors(variable = 'cr',
                          lookback = hours(48), 
                          window = hours(6), 
                          stats = c(mean = mean,
@@ -206,13 +206,13 @@ benchmark_results[['multisession']] =
 
 ```{r}
 
-wf_with_chunks = wf
-wf_with_chunks$chunk_size = 20
+tf_with_chunks = tf
+tf_with_chunks$chunk_size = 20
 
 benchmark_results[['multisession with chunk_size 20']] = 
   microbenchmark::microbenchmark(
-    wf_with_chunks %>% 
-      wiz_add_predictors(variable = 'cr',
+    tf_with_chunks %>% 
+      gpm_add_rolling_predictors(variable = 'cr',
                          lookback = hours(48), 
                          window = hours(6), 
                          stats = c(mean = mean,
@@ -231,8 +231,8 @@ future::plan('sequential')
 
 benchmark_results[['sequential']] = 
   microbenchmark::microbenchmark(
-  wf %>% 
-    wiz_add_predictors(variable = 'cr',
+  tf %>% 
+    gpm_add_rolling_predictors(variable = 'cr',
                        lookback = hours(48), 
                        window = hours(6), 
                        stats = c(mean = mean,
@@ -252,6 +252,6 @@ benchmark_results
 ```
 
 ```{r include=FALSE}
-unlink(file.path(tempdir(), 'wizard_dir', '*.*'))
+unlink(file.path(tempdir(), 'gpmodels_dir', '*.*'))
 ```
 
