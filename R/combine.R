@@ -1,39 +1,38 @@
-#'
-gpm_combine_old = function(time_frame, ..., files = NULL, gpm_path = TRUE, dplyr_join = dplyr::inner_join) {
+# gpm_combine_old = function(time_frame, ..., files = NULL, use_output_folder = TRUE, dplyr_join = dplyr::inner_join) {
+#
+#   if (is.null(files)) {
+#     temporal_dfs = append(list(time_frame$fixed_data %>%
+#                                  dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
+#                           list(...))
+#   } else {
+#     temporal_dfs = append(list(time_frame$fixed_data %>%
+#                                  dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
+#                           as.list(files))
+#   }
+#   temporal_dfs =
+#     temporal_dfs %>%
+#     lapply(function (x) {
+#       if ('data.frame' %in% class(x)) {
+#         return(x)
+#       } else if (class(x) == 'character' & use_output_folder) {
+#         return(data.table::fread(file.path(time_frame$output_folder, x)))
+#       } else if (class(x) == 'character' & !use_output_folder) {
+#         return(data.table::fread(x))
+#       } else {
+#         stop('Error: the ... must be limited to data frames and file paths.')
+#       }
+#     })
+#
+#   return(Reduce(dplyr_join, temporal_dfs) %>% as.data.frame())
+# }
 
-  if (is.null(files)) {
-    temporal_dfs = append(list(time_frame$fixed_data %>%
-                                 dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
-                          list(...))
-  } else {
-    temporal_dfs = append(list(time_frame$fixed_data %>%
-                                 dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
-                          as.list(files))
-  }
-  temporal_dfs =
-    temporal_dfs %>%
-    lapply(function (x) {
-      if ('data.frame' %in% class(x)) {
-        return(x)
-      } else if (class(x) == 'character' & gpm_path) {
-        return(data.table::fread(file.path(time_frame$output_folder, x)))
-      } else if (class(x) == 'character' & !gpm_path) {
-        return(data.table::fread(x))
-      } else {
-        stop('Error: the ... must be limited to data frames and file paths.')
-      }
-    })
-
-  return(Reduce(dplyr_join, temporal_dfs) %>% as.data.frame())
-}
-
-#' New gpm_combine function
+#' New combine_output function
 #' @export
-gpm_combine = function(time_frame,
+combine_output = function(time_frame,
                            ...,
                            files = NULL,
                            include_files = TRUE,
-                           gpm_path = TRUE,
+                           use_output_folder = TRUE,
                            dplyr_join = dplyr::inner_join,
                            log_file = TRUE) {
 
@@ -47,7 +46,7 @@ gpm_combine = function(time_frame,
     if (include_files) {
       if (is.null(files)) {
         files = dir(time_frame$output_folder, pattern = '.csv')
-        gpm_path = TRUE # overwrite gpm_path
+        use_output_folder = TRUE # overwrite use_output_folder
       }
       num_files = length(files)
     }
@@ -61,7 +60,7 @@ gpm_combine = function(time_frame,
     if (include_files) {
       detect_chunks = stringr::str_detect(files, '\\bchunk_\\d+')
 
-      if (gpm_path) {
+      if (use_output_folder) {
         files = file.path(time_frame$output_folder, files)
       }
 

@@ -1,6 +1,6 @@
 #'
 #' @export
-gpm_add_rolling_outcomes = function(time_frame = NULL,
+add_rolling_outcomes = function(time_frame = NULL,
                             variables = NULL,
                             category = NULL,
                             lookahead = lubridate::hours(48),

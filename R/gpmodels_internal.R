@@ -356,7 +356,7 @@ gpm_add_predictors_internal = function(time_frame = NULL,
                       dplyr::pull(class))) {
     stop(paste0('Please select variables that are either all numeric or all categorical. ',
                 'They cannot be mixed. If both are to be selected, then you must dummy ',
-                'code the categorical variables using gpm_dummy_code().'))
+                'code the categorical variables using pre_dummy_code().'))
   }
 
   # If all variables are numeric, convert value column to numeric prior to calculating stats
@@ -393,7 +393,7 @@ gpm_add_predictors_internal = function(time_frame = NULL,
       error = function (e) {
         stop(paste0('At least one of the statistics could not be calculated for the ',
                     'selected variables in the temporal data. Did you perhaps forget to ',
-                    'run gpm_dummy_code() on one of the variables of interest?'))
+                    'run pre_dummy_code() on one of the variables of interest?'))
       })
   }
 

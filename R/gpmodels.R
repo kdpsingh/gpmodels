@@ -323,7 +323,7 @@ gpm_build_temporal_data_dictionary = function (temporal_data,
 #' Either provide a threshold (defaults to 0.5) or provide a vector of variables.
 #' If you supply a vector of variables, this takes precedence over the numeric threshold.
 #' @export
-gpm_dummy_code = function(time_frame = NULL,
+pre_dummy_code = function(time_frame = NULL,
                           numeric_threshold = 0.5,
                           variables = NULL,
                           save_time_frame = TRUE) {
@@ -335,7 +335,7 @@ gpm_dummy_code = function(time_frame = NULL,
       dplyr::pull(variable)
 
     if (length(categorical_vars) == 0) {
-      message(paste('There are no categorical variables. There is no need to apply gpm_dummy_code(). ',
+      message(paste('There are no categorical variables. There is no need to apply pre_dummy_code(). ',
                  'To override this, please supply a vector of variable names to the variables argument.'))
       return(time_frame)
     }

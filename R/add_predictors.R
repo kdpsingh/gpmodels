@@ -1,7 +1,7 @@
 #' Function to add predictors
 #' before fixed_start.
 #' @export
-gpm_add_rolling_predictors = function(time_frame = NULL,
+add_rolling_predictors = function(time_frame = NULL,
                               variables = NULL,
                               category = NULL,
                               lookback = lubridate::hours(48),
@@ -89,7 +89,7 @@ gpm_add_rolling_predictors = function(time_frame = NULL,
 #' Offset of hours(1) would mean that everything would be anchored to 1 hour
 #' before fixed_start.
 #' @export
-gpm_add_baseline_predictors = function(time_frame = NULL,
+add_baseline_predictors = function(time_frame = NULL,
                                        variables = NULL,
                                        category = NULL,
                                        lookback = lubridate::hours(48),
@@ -194,7 +194,7 @@ add_growing_predictors = function(time_frame = NULL,
                                        last_chunk_completed = NULL) {
 
   if (is.null(time_frame$chunk_size)) {
-    add_predictors_internal(time_frame = time_frame,
+    gpm_add_predictors_internal(time_frame = time_frame,
                                 variables = variables,
                                 category = category,
                                 lookback = lubridate::hours(48), # will ignore this in _internal
@@ -242,7 +242,7 @@ add_growing_predictors = function(time_frame = NULL,
         dplyr::filter(!!rlang::parse_expr(time_frame_chunk$fixed_id) %in%
                         time_frame_chunk$temporal_data[[time_frame_chunk$temporal_id]])
 
-      add_predictors_internal(time_frame = time_frame_chunk,
+      gpm_add_predictors_internal(time_frame = time_frame_chunk,
                                   variables = variables,
                                   category = category,
                                   lookback = lubridate::hours(48), # will ignore this in _internal
