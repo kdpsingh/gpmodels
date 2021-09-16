@@ -587,13 +587,19 @@ gpm_add_predictors_internal = function(time_frame = NULL,
               paste0(filename_prefix, file_type, '_category_', category, '_', lubridate::now()) %>%
                 janitor::make_clean_names() %>%
                 paste0('.csv'))
-  } else {
-    file.path(time_frame$output_folder,
-              paste0(filename_prefix, file_type, '_variables_', paste0(variables, collapse = '_'),
-                     '_', lubridate::now()) %>%
-                janitor::make_clean_names() %>%
-                paste0('.csv'))
-  }
+} else {
+  # BUGFIX truncates filename when variable name(s) exceed 30 characters
+  var_length = nchar(paste0(variables, collapse = '_'))
+  if(var_length > 30) {
+    new_var_length = (30 - path_length)
+    message("Filename truncated due to length")
+  } else (new_var_length = var_length)
+  file.path(time_frame$output_folder,
+            paste0(filename_prefix, file_type, '_variables_', substring(paste0(variables, collapse = '_'), 0, new_var_length),
+                   '_', lubridate::now()) %>%
+              janitor::make_clean_names() %>%
+              paste0('.csv'))
+}
 
 
   if (output_file == TRUE) {
