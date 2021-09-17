@@ -1,4 +1,16 @@
 #'
+#' @param time_frame A time frame object
+#' @param variables A vector or list of variable names
+#' @param category A vector or list of category names
+#' @param lookahead A lubridate instant, how far into the future to predict outcome
+#' @param window A lubridate instant, break/interval to divide lookahead
+#' @param stats A list of summary stats
+#' @param impute Carry forward last value
+#' @param output_file Logical, whether or not to output to file or console
+#' @param log_file Logical, whether or not to write to log
+#' @param check_size_only Logical, returns expected number of rows for predictor or predictor chunk if applicable
+#' @param last_chunk_completed Integer, the previous chunk completed if chunking is used
+#'
 #' @export
 add_rolling_outcomes = function(time_frame = NULL,
                             variables = NULL,
