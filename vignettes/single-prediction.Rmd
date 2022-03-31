@@ -1,8 +1,8 @@
 ---
-title: "simple-vignette"
+title: "single-prediction"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{simple-vignette}
+  %\VignetteIndexEntry{single-prediction}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -13,6 +13,7 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 ```
+
 
 # install packages
 
