@@ -1,10 +1,5 @@
 ---
-title: "simple-vignette"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{simple-vignette}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
+title: "single-prediction"
 ---
 
 ```{r, include = FALSE}
@@ -17,7 +12,6 @@ knitr::opts_chunk$set(
 # install packages
 
 ```{r eval=FALSE}
-install.packages("tidyverse")
 install.packages("snakecase")
 install.packages("h2o")
 install.packages("remotes")
@@ -27,13 +21,17 @@ remotes::install_github('ML4LHS/gpmodels')
 # setup
 
 ```{r setup}
-library(tidyverse)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(magrittr)
 library(snakecase)
 library(gpmodels)
 library(lubridate)
+library(ggplot2)
 ```
 
-https://data.world/informatics-edu/synthea-synthetic-patient-information
+https://data.world/informatics-edu/synthea-synthetic-patient-informationus
 
 https://synthea.mitre.org/downloads
 
