@@ -118,21 +118,21 @@ temporal_data = bind_rows(conditions, observations) %>%
 
 > start predictions: admission
 > end predictions: discharge
-> prediction interval: 1 month (arbitrary for single predictions)
+> prediction interval: 6 hours
 
 ```{r}
 tf = gpmodels::time_frame(fixed_data = fixed_data,
                           temporal_data = temporal_data, # timestamped data
                           fixed_id = 'encounter', 
                           fixed_start = 'pred_start', 
-                          fixed_end = 'pred_start', 
+                          fixed_end = 'pred_stop', 
                           temporal_id = 'encounter', 
                           temporal_time = 'time', 
                           temporal_variable = 'description', 
                           temporal_value = ,'value',
                           temporal_category = 'category', 
-                          step = months(1), # how often to make predictions
-                          # max_length = days(7), # maximum time limit to make predictions (e.g. 7 days inpatient)
+                          step = hours(6), # how often to make predictions
+                          max_length = days(7), # maximum time limit to make predictions (e.g. 7 days inpatient)
                           output_folder = './gpmodels_out/',
                           create_folder = TRUE,
                           chunk_size = 2000)
@@ -168,7 +168,15 @@ tf %>%
 tf %>% 
   add_baseline_predictors(category = "observation", 
                           lookback = months(12), 
-                          window = months(3), 
+                          # window = months(3), 
+                          stats = c(min = min, 
+                                    max = max, 
+                                    median = median))
+
+tf %>% 
+  add_rolling_predictors(category = "observation", 
+                          lookback = hours(12), 
+                          window = hours(6), 
                           stats = c(min = min, 
                                     max = max, 
                                     median = median, 
@@ -209,11 +217,6 @@ gpm_prepped = tf %>%
   combine_output() %>% 
   write_csv("prepped_data.csv")
 ```
-
-```{r}
-gpm_prepped %>% head()
-```
-
 
 # Build model
 
