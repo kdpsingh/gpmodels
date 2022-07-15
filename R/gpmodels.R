@@ -356,6 +356,13 @@ pre_dummy_code = function(time_frame = NULL,
       dplyr::select(-gpm_temp_var) %>%
       as.data.frame()
   } else { # if you specify a vector of variables
+
+    # Note: if you have specified a vector of variables, that implies
+    # that the values are already numeric (technically, could also be integer, etc)
+    # So in the case_when, the class has to match the class for the rest of the data
+    # It should be 1 and not "1" but even this could result in an error in rare situations
+    # where the 1 is coded as an integer and not a numeric. We will need to fix this later.
+
     time_frame$temporal_data = time_frame$temporal_data %>%
       dplyr::mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% variables) %>%
       dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
@@ -366,7 +373,7 @@ pre_dummy_code = function(time_frame = NULL,
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_variable)))  %>%
       dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
                       dplyr::case_when(
-                        gpm_temp_var ~ '1',
+                        gpm_temp_var ~ 1,
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_value))) %>%
       dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
       dplyr::select(-gpm_temp_var) %>%
