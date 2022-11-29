@@ -1,5 +1,6 @@
 #' New internal helper function
-gpm_define_steps = function(groups, temporal_id, step, step_units, max_length, baseline, max_step_times_per_id,
+gpm_define_steps = function(groups, temporal_id, step, step_units, max_length, baseline, interval,
+                            max_step_times_per_id,
                             lookback_converted, window_converted, output_folder,
                             log_file) {
 
@@ -8,10 +9,15 @@ gpm_define_steps = function(groups, temporal_id, step, step_units, max_length, b
     return(output_frame)
   }
 
+  if (!is.null(interval) && interval) {
+    output_frame = data.frame(time = 0)
+    return(output_frame)
+  }
+
   max_step_time =
     max_step_times_per_id %>%
-    dplyr::filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]]) %>%
-    dplyr::pull(gpm_step_time)
+    filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]]) %>%
+    pull(gpm_step_time)
 
   if (length(max_step_time) == 0 || max_step_time < 0) { # This should only be the case if someone has no observations in temporal_data after time 0
     stop(paste0('No temporal data was found during the relevant period for ',
@@ -33,7 +39,7 @@ gpm_define_steps = function(groups, temporal_id, step, step_units, max_length, b
   # window_time = window_num*window_converted
 
   # return_frame =
-  #   tidyr::expand_grid(time, window_time)
+  #   expand_grid(time, window_time)
 
   return_frame = data.frame(time = time)
 
@@ -42,36 +48,72 @@ gpm_define_steps = function(groups, temporal_id, step, step_units, max_length, b
 
 #' New internal helper function
 gpm_calc = function(groups, temporal_id, temporal_variable, temporal_value, temporal_time,
-                    lookback_converted, dots, window_converted, temporal_data_of_interest,
+                    lookback_converted, dots, window_converted, fixed_data_of_interest, temporal_data_of_interest,
                     stats, impute, pb, all_temporal_vars, missing_value_frame, strategy) {
 
   if (lookback_converted < 0) { # E.g. if it is a lookahead
     output_item =
       temporal_data_of_interest %>%
-      dplyr::filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+      filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
                       !!rlang::parse_expr(temporal_time) > groups$time[1] & # outcome cannot include right now
                       !!rlang::parse_expr(temporal_time) <= groups$time[1] - lookback_converted)
 
     output_item = output_item %>%
-      dplyr::mutate(window_time = abs(ceiling((groups$time[1] - !!rlang::parse_expr(temporal_time)) /
+      mutate(window_time = abs(ceiling((groups$time[1] - !!rlang::parse_expr(temporal_time)) /
                                                 window_converted) * window_converted))
   } else { # if it is a lookback
     if (!is.null(dots[['growing']]) && dots[['growing']]) {
       output_item =
         temporal_data_of_interest %>%
-        dplyr::filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+        filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
                         !!rlang::parse_expr(temporal_time) <= groups$time[1] & # includes now in predictors
                         !!rlang::parse_expr(temporal_time) >= 0) # Includes time 0
       output_item = output_item %>%
-        dplyr::mutate(window_time = 48) # arbitrary, will ignore
-    } else {
+        mutate(window_time = 48) # arbitrary, will ignore
+    } else if (!is.null(dots[['interval']]) && dots[['interval']]) {
+      fixed_data_of_interest =
+        fixed_data_of_interest %>%
+        filter(fixed_id == groups[[temporal_id]][1])
+
+      if (dots[['start_bound']] == '>=') {
+        output_item =
+          temporal_data_of_interest %>%
+          filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+                   !!rlang::parse_expr(temporal_time) >= fixed_data_of_interest$fixed_interval_start)
+      } else if (dots[['start_bound']] == '>') {
+        output_item =
+          temporal_data_of_interest %>%
+          filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+                   !!rlang::parse_expr(temporal_time) > fixed_data_of_interest$fixed_interval_start)
+      } else {
+        stop('start_bound must be either `>=` or `>`.')
+      }
+
+      if (dots[['end_bound']] == '<=') {
+        output_item =
+          output_item %>%
+          filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+                   !!rlang::parse_expr(temporal_time) <= fixed_data_of_interest$fixed_interval_end)
+      } else if (dots[['end_bound']] == '<') {
+        output_item =
+          output_item %>%
+          filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+                   !!rlang::parse_expr(temporal_time) < fixed_data_of_interest$fixed_interval_end)
+      } else {
+        stop('end_bound must be either `<=` or `<`.')
+      }
+
+      output_item = output_item %>%
+        mutate(window_time = 48) # arbitrary, will ignore
+    }
+    else { # if rolling predictors or rolling outcomes
       output_item =
         temporal_data_of_interest %>%
-        dplyr::filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
+        filter(!!rlang::parse_expr(temporal_id) == groups[[temporal_id]][1] &
                         !!rlang::parse_expr(temporal_time) <= groups$time[1] & # includes now in predictors
                         !!rlang::parse_expr(temporal_time) > groups$time[1] - lookback_converted) # up to X hours ago but not including X
       output_item = output_item %>%
-        dplyr::mutate(window_time = floor((groups$time[1] - !!rlang::parse_expr(temporal_time)) /
+        mutate(window_time = floor((groups$time[1] - !!rlang::parse_expr(temporal_time)) /
                                             window_converted) * window_converted + window_converted)
     }
   }
@@ -79,7 +121,7 @@ gpm_calc = function(groups, temporal_id, temporal_variable, temporal_value, temp
   # If it's *not* a growing predictor, then convert the window to a factor variable
   if (is.null(dots[['growing']]) || !dots[['growing']]) {
     output_item = output_item %>%
-      dplyr::mutate(window_time = factor(window_time,
+      mutate(window_time = factor(window_time,
                                          levels = abs(1:(lookback_converted/window_converted)*window_converted)))
   }
 
@@ -87,120 +129,133 @@ gpm_calc = function(groups, temporal_id, temporal_variable, temporal_value, temp
   # to fill in missing values
   output_item =
     output_item %>%
-    dplyr::mutate(!!rlang::parse_expr(temporal_variable) :=
+    mutate(!!rlang::parse_expr(temporal_variable) :=
                     factor(!!rlang::parse_expr(temporal_variable), levels = all_temporal_vars))
 
   # If there are *no* values returned
   if (nrow(output_item) == 0) {
     output_item =
-      tidyr::crossing(
-        dplyr::tibble(!!rlang::parse_expr(temporal_variable) := all_temporal_vars),
-        dplyr::tibble(gpm_stat = names(stats))
+      crossing(
+        tibble(!!rlang::parse_expr(temporal_variable) := all_temporal_vars),
+        tibble(gpm_stat = names(stats))
       ) %>%
-      tidyr::crossing(
-        dplyr::tibble(window_time = 1:(lookback_converted/window_converted)*window_converted)
+      crossing(
+        tibble(window_time = 1:(lookback_converted/window_converted)*window_converted)
       ) %>%
-      dplyr::mutate(!!rlang::parse_expr(temporal_id) := groups[[temporal_id]][1],
+      mutate(!!rlang::parse_expr(temporal_id) := groups[[temporal_id]][1],
                     time = groups$time[1]) %>%
-      dplyr::select(!!rlang::parse_expr(temporal_id), time, window_time,
-                    !!rlang::parse_expr(temporal_variable), dplyr::everything()) %>%
-      dplyr::mutate(gpm_value = NA)
+      select(!!rlang::parse_expr(temporal_id), time, window_time,
+                    !!rlang::parse_expr(temporal_variable), everything()) %>%
+      mutate(gpm_value = NA)
   } else {
     output_item =
       output_item %>%
-      dplyr::arrange(!!rlang::parse_expr(temporal_variable), !!rlang::parse_expr(temporal_time)) %>%
-      dplyr::group_by(!!rlang::parse_expr(temporal_variable), window_time) %>%
-      dplyr::summarize_at(temporal_value,
-                          .funs = stats) %>%
-      tidyr::complete(window_time) %>%
-      dplyr::ungroup() %>%
-      tidyr::gather(gpm_stat, gpm_value, -!!rlang::parse_expr(temporal_variable), -window_time) %>%
-      tidyr::complete(!!rlang::parse_expr(temporal_variable), window_time, gpm_stat) %>%
-      dplyr::mutate(window_time = window_time %>% as.character() %>% as.numeric()) %>%
-      dplyr::mutate(!!rlang::parse_expr(temporal_variable) :=
+      arrange(!!rlang::parse_expr(temporal_variable), !!rlang::parse_expr(temporal_time)) %>%
+      group_by(!!rlang::parse_expr(temporal_variable), window_time) %>%
+      # summarize_at(temporal_value,
+      #                     .funs = stats) %>%
+      summarize(across(temporal_value, .fns = stats, .names = '{.fn}')) %>%
+      complete(window_time) %>%
+      ungroup() %>%
+      gather(gpm_stat, gpm_value, -!!rlang::parse_expr(temporal_variable), -window_time) %>%
+      complete(!!rlang::parse_expr(temporal_variable), window_time, gpm_stat) %>%
+      mutate(window_time = window_time %>% as.character() %>% as.numeric()) %>%
+      mutate(!!rlang::parse_expr(temporal_variable) :=
                       !!rlang::parse_expr(temporal_variable) %>% as.character()) %>%
-      dplyr::mutate(!!rlang::parse_expr(temporal_id) := groups[[temporal_id]][1],
+      mutate(!!rlang::parse_expr(temporal_id) := groups[[temporal_id]][1],
                     time = groups$time[1]) %>%
-      dplyr::select(!!rlang::parse_expr(temporal_id), time, window_time,
-                    !!rlang::parse_expr(temporal_variable), dplyr::everything())
+      select(!!rlang::parse_expr(temporal_id), time, window_time,
+                    !!rlang::parse_expr(temporal_variable), everything())
   }
 
   # Fill in precalculated missing values (separately for each statistic)
   suppressMessages({
     output_item =
-      dplyr::left_join(
+      left_join(
         output_item,
         missing_value_frame
       ) %>%
-      dplyr::mutate(gpm_value = ifelse(is.na(gpm_value), gpm_missing_value, gpm_value)) %>%
-      dplyr::select(-gpm_missing_value) %>%
-      dplyr::mutate(gpm_value = dplyr::na_if(gpm_value, -Inf)) %>%
-      dplyr::mutate(gpm_value = dplyr::na_if(gpm_value, Inf))
+      mutate(gpm_value = ifelse(is.na(gpm_value), gpm_missing_value, gpm_value)) %>%
+      select(-gpm_missing_value) %>%
+      mutate(gpm_value = na_if(gpm_value, -Inf)) %>%
+      mutate(gpm_value = na_if(gpm_value, Inf))
   })
 
   # Imputation
   if (impute) {
     output_item =
       output_item %>%
-      dplyr::arrange(!!rlang::parse_expr(temporal_variable),
+      arrange(!!rlang::parse_expr(temporal_variable),
                      gpm_stat,
-                     dplyr::desc(window_time * sign(window_converted))) %>%
-      dplyr::group_by(!!rlang::parse_expr(temporal_variable),
+                     desc(window_time * sign(window_converted))) %>%
+      group_by(!!rlang::parse_expr(temporal_variable),
                       gpm_stat) %>%
-      tidyr::fill(-!!rlang::parse_expr(temporal_variable),
+      fill(-!!rlang::parse_expr(temporal_variable),
                   -gpm_stat) %>%
-      dplyr::ungroup()
+      ungroup()
   }
 
   # Name the variables
   output_item =
     output_item %>%
-    dplyr::mutate(gpm_variable =
+    mutate(gpm_variable =
                     paste0(!!rlang::parse_expr(temporal_variable),
                            '_', gpm_stat),
                   gpm_value = gpm_value) %>%
-    dplyr::select(-!!rlang::parse_expr(temporal_variable), -gpm_stat)
+    select(-!!rlang::parse_expr(temporal_variable), -gpm_stat)
 
   if (lookback_converted < 0) { # e.g. if it is a lookahead
     output_item =
       output_item %>%
-      dplyr::mutate(gpm_variable = paste0('outcome_', gpm_variable, '_',
+      mutate(gpm_variable = paste0('outcome_', gpm_variable, '_',
                                           stringr::str_pad(abs(window_time),
                                                            nchar(abs(lookback_converted)), pad = '0'))) %>%
-      dplyr::select(-window_time)
+      select(-window_time)
   } else { # if it is a lookback
 
     if (!is.null(dots[['baseline']]) && dots[['baseline']]) {
       output_item =
         output_item %>%
-        dplyr::mutate(gpm_variable = paste0('baseline_', gpm_variable, '_',
+        mutate(gpm_variable = paste0('baseline_', gpm_variable, '_',
                                             stringr::str_pad(abs(window_time),
                                                              nchar(abs(lookback_converted)), pad = '0'))) %>%
-        dplyr::select(-window_time)
+        select(-window_time)
+
+    } else if (!is.null(dots[['interval']]) && dots[['interval']]) {
+      output_item =
+        output_item %>%
+        mutate(gpm_variable = paste0('interval_', gpm_variable, '_',
+                                     dots[['fixed_interval_start']], '_', dots[['fixed_interval_end']])) %>%
+        select(-window_time)
 
     } else if (!is.null(dots[['growing']]) && dots[['growing']]){
       output_item =
         output_item %>%
-        dplyr::mutate(gpm_variable = paste0('growing_', gpm_variable)) %>%
-        dplyr::select(-window_time)
+        mutate(gpm_variable = paste0('growing_', gpm_variable)) %>%
+        select(-window_time)
     } else {
       output_item =
         output_item %>%
-        dplyr::mutate(gpm_variable = paste0(gpm_variable, '_',
+        mutate(gpm_variable = paste0(gpm_variable, '_',
                                             stringr::str_pad(abs(window_time),
                                                              nchar(abs(lookback_converted)), pad = '0'))) %>%
-        dplyr::select(-window_time)
+        select(-window_time)
     }
   }
 
   output_item =
     output_item %>%
-    tidyr::spread(gpm_variable, gpm_value) %>%
+    spread(gpm_variable, gpm_value) %>%
     as.data.frame()
 
   if (!is.null(dots[['baseline']]) && dots[['baseline']]) {
     output_item =
-      output_item %>% dplyr::select(-time)
+      output_item %>% select(-time)
+  }
+
+  if (!is.null(dots[['interval']]) && dots[['interval']]) {
+    output_item =
+      output_item %>% select(-time)
   }
 
   if (strategy == 'sequential') {
@@ -284,39 +339,39 @@ gpm_add_predictors_internal = function(time_frame = NULL,
 
   # temporal_data_of_interest =
   #   time_frame$temporal_data %>%
-  #   dplyr::group_by(!!rlang::parse_expr(time_frame$temporal_id)) %>%
-  #   dplyr::mutate(gpm_step_time =
+  #   group_by(!!rlang::parse_expr(time_frame$temporal_id)) %>%
+  #   mutate(gpm_step_time =
   #                   !!rlang::parse_expr(time_frame$temporal_time) %/%
   #                   time_frame$step *
   #                   time_frame$step +
   #                   time_frame$step) %>%
-  #   dplyr::mutate(gpm_lookback_time =
+  #   mutate(gpm_lookback_time =
   #                   gpm_step_time - lookback_converted) %>%
-  #   dplyr::ungroup()
+  #   ungroup()
 
 
   # fixed_end and fixed_start should *always* be available now because they are now created if not provided
   max_step_times_per_id =
     temporal_data_of_interest %>%
-    dplyr::left_join(., time_frame$fixed_data %>%
-                       dplyr::select_at(c(time_frame$fixed_id, time_frame$fixed_start, time_frame$fixed_end)) %>%
-                       dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id)) %>%
-                       dplyr::mutate(gpm_fixed_start_time = !!rlang::parse_expr(time_frame$fixed_start)) %>%
-                       dplyr::mutate(gpm_fixed_end_time = !!rlang::parse_expr(time_frame$fixed_end))
+    left_join(., time_frame$fixed_data %>%
+                       select_at(c(time_frame$fixed_id, time_frame$fixed_start, time_frame$fixed_end)) %>%
+                       rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id)) %>%
+                       mutate(gpm_fixed_start_time = !!rlang::parse_expr(time_frame$fixed_start)) %>%
+                       mutate(gpm_fixed_end_time = !!rlang::parse_expr(time_frame$fixed_end))
     ) %>%
-    dplyr::distinct(!!rlang::parse_expr(time_frame$temporal_id), gpm_fixed_start_time, gpm_fixed_end_time)
+    distinct(!!rlang::parse_expr(time_frame$temporal_id), gpm_fixed_start_time, gpm_fixed_end_time)
 
   if (!is.null(time_frame$step_units)) {
     max_step_times_per_id =
       max_step_times_per_id %>%
-      dplyr::mutate(gpm_step_time =
+      mutate(gpm_step_time =
                       lubridate::time_length(gpm_fixed_end_time - gpm_fixed_start_time, unit = time_frame$step_units) %/% time_frame$step * time_frame$step) %>% # will select furthest time with complete step data
-      dplyr::select(!!rlang::parse_expr(time_frame$temporal_id), gpm_step_time)
+      select(!!rlang::parse_expr(time_frame$temporal_id), gpm_step_time)
   } else {
     max_step_times_per_id =
       max_step_times_per_id %>%
-      dplyr::mutate(gpm_step_time = (gpm_fixed_end_time - gpm_fixed_start_time) %/% time_frame$step * time_frame$step) %>% # will select furthest time with complete step data
-      dplyr::select(!!rlang::parse_expr(time_frame$temporal_id), gpm_step_time)
+      mutate(gpm_step_time = (gpm_fixed_end_time - gpm_fixed_start_time) %/% time_frame$step * time_frame$step) %>% # will select furthest time with complete step data
+      select(!!rlang::parse_expr(time_frame$temporal_id), gpm_step_time)
   }
 
 
@@ -339,21 +394,21 @@ gpm_add_predictors_internal = function(time_frame = NULL,
   if (!is.null(variables)) {
     temporal_data_of_interest =
       temporal_data_of_interest %>%
-      dplyr::filter(!!rlang::parse_expr(time_frame$temporal_variable) %in% gpm_variables)
+      filter(!!rlang::parse_expr(time_frame$temporal_variable) %in% gpm_variables)
   } else if (!is.null(category)) {
     temporal_data_of_interest =
       temporal_data_of_interest %>%
-      dplyr::filter(stringr::str_detect(!!rlang::parse_expr(time_frame$temporal_category), gpm_category))
+      filter(stringr::str_detect(!!rlang::parse_expr(time_frame$temporal_category), gpm_category))
   } else {
     stop('This option should not be possible.')
   }
 
   if ('character' %in% (time_frame$temporal_data_dict %>%
-                        dplyr::filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
-                        dplyr::pull(class)) &&
+                        filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
+                        pull(class)) &&
       'numeric' %in% (time_frame$temporal_data_dict %>%
-                      dplyr::filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
-                      dplyr::pull(class))) {
+                      filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
+                      pull(class))) {
     stop(paste0('Please select variables that are either all numeric or all categorical. ',
                 'They cannot be mixed. If both are to be selected, then you must dummy ',
                 'code the categorical variables using pre_dummy_code().'))
@@ -361,8 +416,8 @@ gpm_add_predictors_internal = function(time_frame = NULL,
 
   # If all variables are numeric, convert value column to numeric prior to calculating stats
   if (all(time_frame$temporal_data_dict %>%
-          dplyr::filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
-          dplyr::pull(class) == 'numeric')) {
+          filter(variable %in% temporal_data_of_interest[[time_frame$temporal_variable]]) %>%
+          pull(class) == 'numeric')) {
     temporal_data_of_interest[[time_frame$temporal_value]] =
       as.numeric(temporal_data_of_interest[[time_frame$temporal_value]])
   } else {
@@ -387,15 +442,17 @@ gpm_add_predictors_internal = function(time_frame = NULL,
 
 
   # Test to make sure all stats are calculable
-  for (stat in stats) {
+  ## for (stat in stats) {
     tryCatch({
-      do.call(stat, list(temporal_data_of_interest[[time_frame$temporal_value]]))},
+      temporal_data_of_interest %>%
+        summarize(across(time_frame$temporal_value, .fns = stats, .names = '{.fn}'))},
+      ## do.call(stat, list(temporal_data_of_interest[[time_frame$temporal_value]]))},
       error = function (e) {
         stop(paste0('At least one of the statistics could not be calculated for the ',
                     'selected variables in the temporal data. Did you perhaps forget to ',
                     'run pre_dummy_code() on one of the variables of interest?'))
       })
-  }
+  ## }
 
   if (!is.null(variables)) {
     message(paste0('Processing variables: ', paste0(variables, collapse = ', '), '...'))
@@ -412,8 +469,8 @@ gpm_add_predictors_internal = function(time_frame = NULL,
   }
 
   # final_output_rows = max_step_times_per_id %>%
-  #   dplyr::filter(gpm_step_time >= 0) %>%
-  #   dplyr::pull(gpm_step_time) %>%
+  #   filter(gpm_step_time >= 0) %>%
+  #   pull(gpm_step_time) %>%
   #   {. / time_frame$step + 1} %>% # e.g., if max step for an id is 18 and step is 6, there will rows for 0, 6, 12, 18 (or 18/6 + 1 rows)
   #   {sum(.)}
   #
@@ -431,19 +488,20 @@ gpm_add_predictors_internal = function(time_frame = NULL,
   }
 
   output_frame =
-    dplyr::tibble(!!rlang::parse_expr(time_frame$temporal_id) :=
+    tibble(!!rlang::parse_expr(time_frame$temporal_id) :=
                     unique(time_frame$temporal_data[[time_frame$temporal_id]])) %>%
-    tidyr::crossing(
-      dplyr::tibble(
+    crossing(
+      tibble(
         !!rlang::parse_expr(time_frame$temporal_variable) :=
           unique(temporal_data_of_interest[[time_frame$temporal_variable]]))) %>%
-    dplyr::group_by(!!rlang::parse_expr(time_frame$temporal_id)) %>%
-    dplyr::group_modify(~gpm_define_steps(groups = .y,
+    group_by(!!rlang::parse_expr(time_frame$temporal_id)) %>%
+    group_modify(~gpm_define_steps(groups = .y,
                                           temporal_id = time_frame$temporal_id,
                                           step = time_frame$step,
                                           step_units = time_frame$step_units,
                                           max_length = time_frame$max_length,
                                           baseline = dots[['baseline']],
+                                          interval = dots[['interval']],
                                           max_step_times_per_id = max_step_times_per_id,
                                           lookback_converted = lookback_converted,
                                           window_converted = window_converted,
@@ -460,7 +518,7 @@ gpm_add_predictors_internal = function(time_frame = NULL,
     return(nrow(output_frame))
   }
 
-
+  # Currently, an offset is only supported for baseline predictors
   if (!is.null(dots[['baseline']]) && dots[['baseline']]) {
     if (!is.null(time_frame$step_units)) {
       temporal_data_of_interest[[time_frame$temporal_time]] =
@@ -470,6 +528,34 @@ gpm_add_predictors_internal = function(time_frame = NULL,
       temporal_data_of_interest[[time_frame$temporal_time]] =
         temporal_data_of_interest[[time_frame$temporal_time]] + offset
     }
+  }
+
+  # Fixed data of interest is only needed for calculations when using
+  # interval variables, otherwise return NULL
+  if (!is.null(dots[['interval']]) && dots[['interval']]) {
+    if (!is.null(time_frame$step_units)) {
+      fixed_data_of_interest =
+        time_frame$fixed_data %>%
+        select(fixed_id = time_frame$fixed_id,
+               fixed_start = time_frame$fixed_start,
+               fixed_interval_start = dots[['fixed_interval_start']],
+               fixed_interval_end = dots[['fixed_interval_end']]) %>%
+        mutate(fixed_interval_start = time_length(fixed_interval_start - fixed_start, unit = time_frame$step_units),
+               fixed_interval_end = time_length(fixed_interval_end - fixed_start, unit = time_frame$step_units)) %>%
+        select(-fixed_start)
+    } else {
+      fixed_data_of_interest =
+        time_frame$fixed_data %>%
+        select(fixed_id = time_frame$fixed_id,
+               fixed_start = time_frame$fixed_start,
+               fixed_interval_start = dots[['fixed_interval_start']],
+               fixed_interval_end = dots[['fixed_interval_end']]) %>%
+        mutate(fixed_interval_start = fixed_interval_start - fixed_start,
+               fixed_interval_end = fixed_interval_end - fixed_start) %>%
+        select(-fixed_start)
+    }
+  } else {
+    fixed_data_of_interest = NULL
   }
 
   total_num_groups = nrow(output_frame)
@@ -502,11 +588,14 @@ gpm_add_predictors_internal = function(time_frame = NULL,
   }
   # Use a bit of R magic. Looking for is.null() because median(NULL) returns NULL
   # Note: mean(NULL) returns NA, sum(NULL) returns 0, length(NULL) returns 0
+  # The tryCatch() was added here to default to NA (by returning TRUE) if the function results in an error
+  # The main reason this function would result in an error is if a function was provided that requires
+  # cur_data_all(), for example, to calculate a slope.
   suppressWarnings({
-    missing_value_frame = dplyr::tibble(gpm_stat = names(stats),
+    missing_value_frame = tibble(gpm_stat = names(stats),
                                         gpm_missing_value =
                                           sapply(stats, function (x) {
-                                            ifelse(is.null(do.call(x, list(NULL))),
+                                            ifelse(tryCatch(is.null(do.call(x, list(NULL))), error = function (e) {TRUE}),
                                                    NA,
                                                    do.call(x, list(NULL)))}))
   })
@@ -519,9 +608,9 @@ gpm_add_predictors_internal = function(time_frame = NULL,
 
   output_list =
     output_frame %>%
-    dplyr::group_by(!!rlang::parse_expr(time_frame$temporal_id),
+    group_by(!!rlang::parse_expr(time_frame$temporal_id),
                     time) %>%
-    dplyr::group_split()
+    group_split()
 
   all_temporal_vars = unique(temporal_data_of_interest[[time_frame$temporal_variable]]) %>% as.factor()
 
@@ -537,6 +626,7 @@ gpm_add_predictors_internal = function(time_frame = NULL,
                             lookback_converted = lookback_converted,
                             dots = dots,
                             window_converted = window_converted,
+                            fixed_data_of_interest = fixed_data_of_interest,
                             temporal_data_of_interest = temporal_data_of_interest,
                             stats = stats,
                             impute = impute,

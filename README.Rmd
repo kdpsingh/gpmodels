@@ -78,7 +78,7 @@ tf$fixed_data_dict
 tf$temporal_data_dict
 ```
 
-## Let's dummy           code the temporal categorical variables
+## Let's dummy code the temporal categorical variables
 
 
 ```{r}
@@ -87,7 +87,7 @@ tf = tf %>%
 ```
 
 
-This affects only the temporal data and not the fixed data.
+# This affects only the temporal data and not the fixed data.
 
 ```{r}
 tf$fixed_data_dict

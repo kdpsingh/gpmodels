@@ -13,6 +13,7 @@ gpm_calc(
   lookback_converted,
   dots,
   window_converted,
+  fixed_data_of_interest,
   temporal_data_of_interest,
   stats,
   impute,

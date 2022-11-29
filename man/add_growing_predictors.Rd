@@ -2,9 +2,7 @@
 % Please edit documentation in R/add_predictors.R
 \name{add_growing_predictors}
 \alias{add_growing_predictors}
-\title{Function to add baseline predictors
-Offset of hours(1) would mean that everything would be anchored to 1 hour
-before fixed_start.}
+\title{Function to add growing predictors}
 \usage{
 add_growing_predictors(
   time_frame = NULL,
@@ -17,8 +15,21 @@ add_growing_predictors(
   last_chunk_completed = NULL
 )
 }
+\arguments{
+\item{time_frame}{A time frame object}
+
+\item{variables}{A vector or list of variable names}
+
+\item{category}{A vector or list of category names}
+
+\item{stats}{A list of summary stats}
+
+\item{output_file}{Logical, whether or not to output to file or console}
+
+\item{log_file}{Logical, whether or not to write to log}
+
+\item{last_chunk_completed}{Integer, the previous chunk completed if chunking is used}
+}
 \description{
-Function to add baseline predictors
-Offset of hours(1) would mean that everything would be anchored to 1 hour
-before fixed_start.
+Function to add growing predictors
 }

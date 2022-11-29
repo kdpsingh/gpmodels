@@ -1,3 +1,7 @@
+#' @import dplyr
+#' @import tidyr
+NULL
+
 #' Define wizard frame
 #' @export
 time_frame = function(fixed_data,
@@ -134,14 +138,14 @@ time_frame = function(fixed_data,
     suppressMessages({
       fixed_data =
         fixed_data %>%
-        dplyr::left_join(., temporal_data %>%
-                           dplyr::select_at(c(temporal_id, temporal_time)) %>%
-                           dplyr::group_by(!!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::arrange(!!rlang::parse_expr(temporal_time)) %>%
-                           dplyr::slice(1) %>% # Pick the first value (temporally)
-                           dplyr::ungroup() %>%
-                           dplyr::rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::rename(gpm_start_time = !!rlang::parse_expr(temporal_time)))
+        left_join(., temporal_data %>%
+                           select_at(c(temporal_id, temporal_time)) %>%
+                           group_by(!!rlang::parse_expr(temporal_id)) %>%
+                           arrange(!!rlang::parse_expr(temporal_time)) %>%
+                           slice(1) %>% # Pick the first value (temporally)
+                           ungroup() %>%
+                           rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
+                           rename(gpm_start_time = !!rlang::parse_expr(temporal_time)))
 
       fixed_start = 'gpm_start_time'
     })
@@ -151,14 +155,14 @@ time_frame = function(fixed_data,
     suppressMessages({
       fixed_data =
         fixed_data %>%
-        dplyr::left_join(., temporal_data %>%
-                           dplyr::select_at(c(temporal_id, temporal_time)) %>%
-                           dplyr::group_by(!!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::arrange(!!rlang::parse_expr(temporal_time)) %>%
-                           dplyr::slice(dplyr::n()) %>% # Pick the last value (temporally)
-                           dplyr::ungroup() %>%
-                           dplyr::rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
-                           dplyr::rename(gpm_end_time = !!rlang::parse_expr(temporal_time)))
+        left_join(., temporal_data %>%
+                           select_at(c(temporal_id, temporal_time)) %>%
+                           group_by(!!rlang::parse_expr(temporal_id)) %>%
+                           arrange(!!rlang::parse_expr(temporal_time)) %>%
+                           slice(n()) %>% # Pick the last value (temporally)
+                           ungroup() %>%
+                           rename(!!rlang::parse_expr(fixed_id) := !!rlang::parse_expr(temporal_id)) %>%
+                           rename(gpm_end_time = !!rlang::parse_expr(temporal_time)))
 
       fixed_end = 'gpm_end_time'
     })
@@ -174,38 +178,38 @@ time_frame = function(fixed_data,
   suppressMessages({
     temporal_data =
       temporal_data %>%
-      dplyr::left_join(., fixed_data %>%
-                         dplyr::select_at(c(fixed_id, fixed_start)) %>%
-                         dplyr::rename(!!rlang::parse_expr(temporal_id) := !!rlang::parse_expr(fixed_id)) %>%
-                         dplyr::rename(gpm_fixed_start_time = !!rlang::parse_expr(fixed_start))
+      left_join(., fixed_data %>%
+                         select_at(c(fixed_id, fixed_start)) %>%
+                         rename(!!rlang::parse_expr(temporal_id) := !!rlang::parse_expr(fixed_id)) %>%
+                         rename(gpm_fixed_start_time = !!rlang::parse_expr(fixed_start))
       )
   })
 
   if (!is.null(step_units)) {
     temporal_data =
       temporal_data %>%
-      dplyr::mutate(!!rlang::parse_expr(temporal_time) :=
+      mutate(!!rlang::parse_expr(temporal_time) :=
                       lubridate::time_length(!!rlang::parse_expr(temporal_time) - gpm_fixed_start_time, unit = step_units)) %>%
-      dplyr::select(-gpm_fixed_start_time)
+      select(-gpm_fixed_start_time)
   } else {
     temporal_data =
       temporal_data %>%
-      dplyr::mutate(!!rlang::parse_expr(temporal_time) :=
+      mutate(!!rlang::parse_expr(temporal_time) :=
                       !!rlang::parse_expr(temporal_time) - gpm_fixed_start_time) %>%
-      dplyr::select(-gpm_fixed_start_time)
+      select(-gpm_fixed_start_time)
   }
 
 
   # Transform factors to characters
-  fixed_data = fixed_data %>% dplyr::mutate_if(is.factor, as.character)
-  temporal_data = temporal_data %>% dplyr::mutate_if(is.factor, as.character)
+  fixed_data = fixed_data %>% mutate_if(is.factor, as.character)
+  temporal_data = temporal_data %>% mutate_if(is.factor, as.character)
 
   # Generate a data dictionary for fixed_data
   fixed_data_dict =
     lapply(fixed_data, class) %>%
     lapply(function (x) x[1]) %>% # If multiple classes, take only the first one (happens with date-times)
-    dplyr::as_tibble() %>%
-    tidyr::gather(key = 'variable', value = 'class') %>%
+    as_tibble() %>%
+    gather(key = 'variable', value = 'class') %>%
     as.data.frame()
 
   suppressWarnings({
@@ -256,11 +260,11 @@ gpm_build_temporal_data_dictionary = function (temporal_data,
                                                numeric_threshold = 0.5) {
   temporal_data_dict =
     temporal_data %>%
-    dplyr::select_at(temporal_variable) %>%
-    dplyr::pull(1) %>%
+    select_at(temporal_variable) %>%
+    pull(1) %>%
     unique() %>%
-    dplyr::tibble(variable = .) %>%
-    dplyr::mutate(class = 'unsure')
+    tibble(variable = .) %>%
+    mutate(class = 'unsure')
 
   temporal_data_class = class(temporal_data[[temporal_value]])
 
@@ -268,15 +272,15 @@ gpm_build_temporal_data_dictionary = function (temporal_data,
   # If all variables are numeric/integer
     temporal_data_dict =
       temporal_data_dict %>%
-      dplyr::mutate(class = 'numeric')
+      mutate(class = 'numeric')
   } else {
     # If not, check data type for each temporal variable
     for (temporal_data_var in temporal_data_dict$variable) {
 
        temporal_data_values =
         temporal_data %>%
-        dplyr::filter(!!rlang::parse_expr(temporal_variable) == temporal_data_var) %>%
-        dplyr::pull(!!rlang::parse_expr(temporal_value))
+        filter(!!rlang::parse_expr(temporal_variable) == temporal_data_var) %>%
+        pull(!!rlang::parse_expr(temporal_value))
 
       temporal_data_class = 'unsure'
 
@@ -297,7 +301,7 @@ gpm_build_temporal_data_dictionary = function (temporal_data,
 
       temporal_data_dict =
         temporal_data_dict %>%
-        dplyr::mutate(class = dplyr::if_else(
+        mutate(class = if_else(
           variable == temporal_data_var,
           temporal_data_class,
           class))
@@ -309,7 +313,7 @@ gpm_build_temporal_data_dictionary = function (temporal_data,
 
   temporal_data_dict =
     temporal_data_dict %>%
-    dplyr::arrange(variable) %>%
+    arrange(variable) %>%
     as.data.frame()
   temporal_data_dict
 }
@@ -331,8 +335,8 @@ pre_dummy_code = function(time_frame = NULL,
   if (is.null(variables)) { # if you do NOT supply a vector of variables (the default)
 
     categorical_vars = time_frame$temporal_data_dict %>%
-      dplyr::filter(class == 'character') %>%
-      dplyr::pull(variable)
+      filter(class == 'character') %>%
+      pull(variable)
 
     if (length(categorical_vars) == 0) {
       message(paste('There are no categorical variables. There is no need to apply pre_dummy_code(). ',
@@ -341,19 +345,19 @@ pre_dummy_code = function(time_frame = NULL,
     }
 
     time_frame$temporal_data = time_frame$temporal_data %>%
-      dplyr::mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% categorical_vars) %>%
-      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
-                      dplyr::case_when(
+      mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% categorical_vars) %>%
+      mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
+                      case_when(
                         gpm_temp_var ~ paste0(!!rlang::parse_expr(time_frame$temporal_variable),
                                               '_',
                                               !!rlang::parse_expr(time_frame$temporal_value)),
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_variable)))  %>%
-      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
-                      dplyr::case_when(
+      mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
+                      case_when(
                         gpm_temp_var ~ '1',
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_value))) %>%
-      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
-      dplyr::select(-gpm_temp_var) %>%
+      mutate_at(vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
+      select(-gpm_temp_var) %>%
       as.data.frame()
   } else { # if you specify a vector of variables
 
@@ -364,19 +368,19 @@ pre_dummy_code = function(time_frame = NULL,
     # where the 1 is coded as an integer and not a numeric. We will need to fix this later.
 
     time_frame$temporal_data = time_frame$temporal_data %>%
-      dplyr::mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% variables) %>%
-      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
-                      dplyr::case_when(
+      mutate(gpm_temp_var = (!!rlang::parse_expr(time_frame$temporal_variable)) %in% variables) %>%
+      mutate(!!rlang::parse_expr(time_frame$temporal_variable) :=
+                      case_when(
                         gpm_temp_var ~ paste0(!!rlang::parse_expr(time_frame$temporal_variable),
                                               '_',
                                               !!rlang::parse_expr(time_frame$temporal_value)),
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_variable)))  %>%
-      dplyr::mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
-                      dplyr::case_when(
+      mutate(!!rlang::parse_expr(time_frame$temporal_value) :=
+                      case_when(
                         gpm_temp_var ~ 1,
                         TRUE ~ !!rlang::parse_expr(time_frame$temporal_value))) %>%
-      dplyr::mutate_at(dplyr::vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
-      dplyr::select(-gpm_temp_var) %>%
+      mutate_at(vars(!!rlang::parse_expr(time_frame$temporal_value)), as.numeric) %>%
+      select(-gpm_temp_var) %>%
       as.data.frame()
   }
 
@@ -393,6 +397,16 @@ pre_dummy_code = function(time_frame = NULL,
   time_frame
 }
 
-
+#' Function to calculate slope
+#'
+#' @param x
+#'
+#' @return
+#' @export
+slope = function (x) {
+  lm(x~time, data = cur_data_all()) %>%
+    coef() %>%
+    .[2]
+  }
 
 

@@ -1,7 +1,7 @@
 Package: gpmodels
 Type: Package
 Title: A Grammar of Prediction Models
-Version: 0.3.0
+Version: 0.4.0
 Author: Karandeep Singh
 Maintainer: Karandeep Singh <kdpsingh@umich.edu>
 Description: This package provides a grammar for data preparation and 
@@ -13,7 +13,7 @@ LazyData: true
 Imports: 
     data.table (>= 1.12.8),
     magrittr,
-    dplyr (>= 0.8.3),
+    dplyr (>= 1.0.9),
     assertthat,
     tidyr (>= 1.0.0),
     rlang (>= 0.4.2),

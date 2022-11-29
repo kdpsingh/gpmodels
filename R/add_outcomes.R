@@ -66,12 +66,12 @@ add_rolling_outcomes = function(time_frame = NULL,
 
       time_frame_chunk$temporal_data =
         time_frame_chunk$temporal_data %>%
-        dplyr::filter(!!rlang::parse_expr(time_frame_chunk$temporal_id) %in%
+        filter(!!rlang::parse_expr(time_frame_chunk$temporal_id) %in%
                         unique_temporal_ids[chunk_ids == chunk_num])
 
       time_frame_chunk$fixed_data =
         time_frame_chunk$fixed_data %>%
-        dplyr::filter(!!rlang::parse_expr(time_frame_chunk$fixed_id) %in%
+        filter(!!rlang::parse_expr(time_frame_chunk$fixed_id) %in%
                         time_frame_chunk$temporal_data[[time_frame_chunk$temporal_id]])
 
       gpm_add_predictors_internal(time_frame = time_frame_chunk,

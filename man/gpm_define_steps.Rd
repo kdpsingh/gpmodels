@@ -11,6 +11,7 @@ gpm_define_steps(
   step_units,
   max_length,
   baseline,
+  interval,
   max_step_times_per_id,
   lookback_converted,
   window_converted,

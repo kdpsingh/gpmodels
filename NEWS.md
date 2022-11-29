@@ -60,3 +60,10 @@
 
 # gpmodels 0.3.1 (2021-07-12)
 * Name change to gpmodels to reflect an expansion in scope to include data preparation and evaluation of fixed-origin and rolling-origin prediction models.
+
+# gpmodels 0.4.0 (2022-11-29)
+* Added `add_interval_variables()` functions to add variables with left and right bounds specified by columns in the fixed data. It can be used for predictors or outcomes.
+* Added `slope()` function to calculate slope and also to demonstrate how to use `cur_data_all()` to calculate summary statistics that require access to the `temporal_time` column in the `temporal_data`.
+* Increased `dplyr` dependency version to 1.0.9.
+* Internally switched to `dplyr::summarize(across())` format from newer dplyr versions instead of using summarize_at()
+* Import (but not re-export) `dplyr` to make code a bit more concise

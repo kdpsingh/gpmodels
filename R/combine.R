@@ -1,12 +1,12 @@
-# gpm_combine_old = function(time_frame, ..., files = NULL, use_output_folder = TRUE, dplyr_join = dplyr::inner_join) {
+# gpm_combine_old = function(time_frame, ..., files = NULL, use_output_folder = TRUE, dplyr_join = inner_join) {
 #
 #   if (is.null(files)) {
 #     temporal_dfs = append(list(time_frame$fixed_data %>%
-#                                  dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
+#                                  rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
 #                           list(...))
 #   } else {
 #     temporal_dfs = append(list(time_frame$fixed_data %>%
-#                                  dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
+#                                  rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id))),
 #                           as.list(files))
 #   }
 #   temporal_dfs =
@@ -37,7 +37,7 @@ combine_output = function(time_frame,
                            log_file = TRUE) {
 
     return_frame = list(time_frame$fixed_data %>%
-                          dplyr::rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id)))
+                          rename(!!rlang::parse_expr(time_frame$temporal_id) := !!rlang::parse_expr(time_frame$fixed_id)))
 
     if (length(list(...)) > 0) {
       return_frame = append(return_frame, list(...))
@@ -113,7 +113,7 @@ combine_output = function(time_frame,
                      Reduce(dplyr_join, .) %>%
                      as.data.frame()
                  }) %>%
-                   dplyr::bind_rows() %>%
+                   bind_rows() %>%
                    list())
         }
     }

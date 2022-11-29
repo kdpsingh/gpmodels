@@ -21,6 +21,29 @@ add_baseline_predictors(
   last_chunk_completed = NULL
 )
 }
+\arguments{
+\item{time_frame}{A time frame object}
+
+\item{variables}{A vector or list of variable names}
+
+\item{category}{A vector or list of category names}
+
+\item{lookback}{A lubridate instant, length of time in the past to include}
+
+\item{window}{A lubridate instant, break/interval to divide lookback}
+
+\item{offset}{A lubridate instant, amount of time prior to fixed_start to anchor first prediction}
+
+\item{stats}{A list of summary stats}
+
+\item{impute}{Last observation carry forward}
+
+\item{output_file}{Logical, whether or not to output to file or console}
+
+\item{log_file}{Logical, whether or not to write to log}
+
+\item{last_chunk_completed}{Integer, the previous chunk completed if chunking is used}
+}
 \description{
 Function to add baseline predictors
 Offset of hours(1) would mean that everything would be anchored to 1 hour
