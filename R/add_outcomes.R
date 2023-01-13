@@ -1,3 +1,4 @@
+#' Add rolling outcomes
 #'
 #' @param time_frame A time frame object
 #' @param variables A vector or list of variable names

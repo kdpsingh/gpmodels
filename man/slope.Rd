@@ -9,9 +9,6 @@ slope(x)
 \arguments{
 \item{x}{}
 }
-\value{
-
-}
 \description{
 Function to calculate slope
 }

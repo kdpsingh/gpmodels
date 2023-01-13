@@ -294,15 +294,13 @@ add_growing_predictors = function(time_frame = NULL,
 }
 
 #' Function to add interval variables
-#' Offset of hours(1) would mean that everything would be anchored to 1 hour
-#' before fixed_start.
 #'
 #' @param time_frame A time frame object
 #' @param variables A vector or list of variable names
 #' @param category A vector or list of category names
 #' @param lookback A lubridate instant, length of time in the past to include
 #' @param window A lubridate instant, break/interval to divide lookback
-#' @param offset A lubridate instant, amount of time prior to fixed_start to anchor first prediction
+
 #' @param stats A list of summary stats
 #' @param impute Last observation carry forward
 #' @param output_file Logical, whether or not to output to file or console
@@ -343,8 +341,8 @@ add_interval_variables = function(time_frame = NULL,
                                 interval = TRUE,
                                 fixed_interval_start = fixed_interval_start,
                                 fixed_interval_end = fixed_interval_end,
-                                start_bound = '>=',
-                                end_bound = '<=')
+                                start_bound = start_bound,
+                                end_bound = end_bound)
   } else {
     assertthat::assert_that(time_frame$chunk_size > 0)
 
@@ -395,8 +393,8 @@ add_interval_variables = function(time_frame = NULL,
                                   interval = TRUE,
                                   fixed_interval_start = fixed_interval_start,
                                   fixed_interval_end = fixed_interval_end,
-                                  start_bound = '>=',
-                                  end_bound = '<=',
+                                  start_bound = start_bound,
+                                  end_bound = end_bound,
                                   filename_prefix = paste0('chunk_',
                                                            stringr::str_pad(chunk_num,
                                                                             nchar(n_chunks),
