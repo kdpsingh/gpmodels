@@ -119,7 +119,9 @@ gpm_calc = function(groups, temporal_id, temporal_variable, temporal_value, temp
   }
 
   # If it's *not* a growing predictor, then convert the window to a factor variable
-  if (is.null(dots[['growing']]) || !dots[['growing']]) {
+  if (!is.null(dots[["interval"]]) && dots[["interval"]]) {
+    output_item = output_item %>% mutate(window_time = factor(window_time, levels = 48))
+  } else if (is.null(dots[['growing']]) || !dots[['growing']]) {
     output_item = output_item %>%
       mutate(window_time = factor(window_time,
                                          levels = abs(1:(lookback_converted/window_converted)*window_converted)))
