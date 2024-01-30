@@ -598,7 +598,7 @@ gpm_add_predictors_internal = function(time_frame = NULL,
                                         gpm_missing_value =
                                           sapply(stats, function (x) {
                                             ifelse(tryCatch(is.null(do.call(x, list(NULL))), error = function (e) {TRUE}),
-                                                   NA,
+                                                   NA_real_,
                                                    do.call(x, list(NULL)))}))
   })
 
